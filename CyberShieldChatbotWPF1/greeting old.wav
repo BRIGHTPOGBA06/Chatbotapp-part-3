@@ -1,0 +1,48 @@
+# Run this script from your solution root (C:\Users\Student\source\repos\Chatbotapp).
+# It creates a short silent PCM WAV named CyberShieldChatbotWPF1\greeting.wav.
+$path = "CyberShieldChatbotWPF1\greeting.wav"
+$durationSeconds = 0.5
+$sampleRate = 44100
+$bitsPerSample = 16
+$channels = 1
+
+$samples = [int]($sampleRate * $durationSeconds)
+$bytesPerSample = $bitsPerSample / 8
+$dataSize = $samples * $channels * $bytesPerSample
+$byteRate = $sampleRate * $channels * $bytesPerSample
+$blockAlign = $channels * $bytesPerSample
+$riffChunkSize = 36 + $dataSize
+
+$ms = New-Object System.IO.MemoryStream
+$bw = New-Object System.IO.BinaryWriter($ms)
+
+# RIFF header
+$bw.Write([System.Text.Encoding]::ASCII.GetBytes("RIFF"))
+$bw.Write([System.BitConverter]::GetBytes([int]$riffChunkSize))
+$bw.Write([System.Text.Encoding]::ASCII.GetBytes("WAVE"))
+
+# fmt subchunk
+$bw.Write([System.Text.Encoding]::ASCII.GetBytes("fmt "))
+$bw.Write([System.BitConverter]::GetBytes([int]16))                     # Subchunk1Size for PCM
+$bw.Write([System.BitConverter]::GetBytes([short]1))                    # AudioFormat = 1 (PCM)
+$bw.Write([System.BitConverter]::GetBytes([short]$channels))
+$bw.Write([System.BitConverter]::GetBytes([int]$sampleRate))
+$bw.Write([System.BitConverter]::GetBytes([int]$byteRate))
+$bw.Write([System.BitConverter]::GetBytes([short]$blockAlign))
+$bw.Write([System.BitConverter]::GetBytes([short]$bitsPerSample))
+
+# data subchunk
+$bw.Write([System.Text.Encoding]::ASCII.GetBytes("data"))
+$bw.Write([System.BitConverter]::GetBytes([int]$dataSize))
+
+# write silence (zeros)
+for ($i = 0; $i -lt $dataSize; $i++) {
+    $bw.Write([byte]0)
+}
+
+$bw.Flush()
+[System.IO.File]::WriteAllBytes($path, $ms.ToArray())
+
+$bw.Close()
+$ms.Close()
+Write-Host "Created $path ($durationSeconds s of silence)"
